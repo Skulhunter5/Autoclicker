@@ -1,5 +1,7 @@
-# Autoclicker
-Autoclicker with simple scripting
+# Autoclicker [WIP]
+Autoclicker with simple scripting [not implemented yet]
 
-## Libraries:
+
+
+## Libraries used:
 - [Dear ImGui](https://github.com/ocornut/imgui)
