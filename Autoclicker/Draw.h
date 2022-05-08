@@ -2,8 +2,9 @@
 
 #include <string>
 #include <Windows.h>
-#include <vector>
 #include "ImGui/imgui.h"
+#include "Utils.h"
+#include "Data.h"
 
 class Window {
 public:
@@ -11,6 +12,8 @@ public:
 	static unsigned int height;
 	static bool sizeChanged;
 };
+
+void DrawSimpleMacros(float belowBanner);
 
 bool IntWndProc(UINT msg, WPARAM wParam, LPARAM lParam);
 

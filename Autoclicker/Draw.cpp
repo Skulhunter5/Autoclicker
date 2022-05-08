@@ -1,7 +1,5 @@
 #include "Draw.h"
 
-#include <stdlib.h>
-
 static int key_target = -1;
 
 static ImFont* font_corbel_20 = NULL;
@@ -16,15 +14,6 @@ static const unsigned int nTabs = 3;
 static const char* tabIdToTitle[nTabs] = { "Simple", "Complex", "Shurtcuts" };
 static int selectedTab = 0;
 
-struct SimpleMacro {
-	char name[20];
-	UINT id;
-	int key;
-	int delay;
-};
-
-static std::vector<SimpleMacro> simpleMacros = {};
-
 bool IntWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (msg == WM_KEYDOWN) {
 		if (key_target >= 0) {
@@ -32,7 +21,14 @@ bool IntWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 				key_target = -1;
 				return 1;
 			}
-			simpleMacros.at(key_target).key = wParam;
+			Data::simpleMacros.at(key_target).key = wParam;
+			key_target = -1;
+			return 1;
+		}
+	}
+	else if (msg == WM_SYSKEYDOWN) {
+		if (key_target >= 0) {
+			Data::simpleMacros.at(key_target).key = wParam;
 			key_target = -1;
 			return 1;
 		}
@@ -124,14 +120,14 @@ ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(tweaks.color[0], tweaks.color[1], tw
 ImGui::PopStyleColor();
 */
 
-void Draw() {
-	static int simple_editor_open = -1;
+int simple_editor_open = -1;
 
-	static bool first_time = true;
+static bool first_time = true;
+void Draw() {
 	if (first_time) {
-		simpleMacros.push_back({ "test1", 0, 72, 500 });
-		simpleMacros.push_back({ "test2", 1, 73, 1000 });
-		simpleMacros.push_back({ "test3", 2, 74, 250 });
+		Data::simpleMacros.push_back({ "test1", 0, 72, 500 });
+		Data::simpleMacros.push_back({ "test2", 1, 73, 1000 });
+		Data::simpleMacros.push_back({ "test3", 2, 74, 250 });
 
 		first_time = false;
 	}
@@ -150,7 +146,12 @@ void Draw() {
 			ImVec2 buttonSize = ImVec2(Window::width / 3, 50);
 			for (int i = 0; i < nTabs; i++) {
 				ImGui::SameLine();
-				if (ImGui::Button(tabIdToTitle[i], buttonSize)) selectedTab = i;
+				if (ImGui::Button(tabIdToTitle[i], buttonSize)) {
+					// Switch to selected tab
+					selectedTab = i;
+					// Remove possible key select listener
+					key_target = -1;
+				}
 			}
 		}
 		ImGui::PopFont();
@@ -170,76 +171,10 @@ void Draw() {
 		ImGui::PopFont();
 
 		float belowBanner = ImGui::GetCursorPosY() + 1;
-		float tel_listWidth = 300;
 
 		switch (selectedTab) {
 		case 0: { // SimpleMacros
-			// MacroList
-			ImGui::SetCursorPos(ImVec2(2, belowBanner));
-			// -Styles
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(3.0f, 3.0f));
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 1.0f));
-			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			// -Child
-			ImGui::BeginChild("simpleMacros_list", { tel_listWidth, Window::height - ImGui::GetCursorPosY() - 2 }, true, ImGuiWindowFlags_HorizontalScrollbar);
-			// -Content
-			ImVec2 buttonSize = ImVec2(tel_listWidth - 6, 0);
-			for (int i = 0; i < simpleMacros.size(); i++) {
-				std::string buttonText = std::string(simpleMacros.at(i).name);
-				buttonText.append("##");
-				buttonText.append(std::to_string(i));
-				if (ImGui::Button(buttonText.c_str(), buttonSize)) {
-					simple_editor_open = i;
-				}
-			}
-			// -EndChild
-			ImGui::EndChild();
-			// -Remove styles
-			ImGui::PopStyleVar(3);
-
-			// MacroEditor
-			ImGui::SetCursorPos(ImVec2(2 + tel_listWidth + 2, belowBanner));
-			// -Styles
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6.0f, 4.0f));
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 4.0f));
-			// -Child
-			ImGui::BeginChild("simpleMacros_editor", ImVec2(Window::width - tel_listWidth, Window::height - ImGui::GetCursorPosY() - 2), true);
-			if (simple_editor_open >= 0) {
-				SimpleMacro* current = &simpleMacros.at(simple_editor_open);
-
-				ImGui::Text("Name:");
-				ImGui::SetCursorPosX(20);
-				ImGui::PushItemWidth(291);
-				ImGui::InputText("##name", current->name, IM_ARRAYSIZE(current->name));
-				ImGui::PopItemWidth();
-
-				ImGui::Text("Key:");
-				ImGui::SetCursorPosX(20);
-				std::string label = std::string(1, (char)MapVirtualKeyA(current->key, MAPVK_VK_TO_CHAR));
-				bool changing_this = false;
-				if (key_target == simple_editor_open) {
-					changing_this = true;
-					label = std::string("Type new key or press again to cancel.");
-				}
-				if (ImGui::Button(label.c_str(), changing_this ? ImVec2(0, 0) : ImVec2(100, 0))) {
-					if (changing_this) {
-						key_target = -1;
-					}
-					else {
-						key_target = simple_editor_open;
-					}
-				}
-
-				ImGui::Text("Delay (ms):");
-				ImGui::SetCursorPosX(20);
-				ImGui::PushItemWidth(291);
-				ImGui::InputInt("##delay", &current->delay);
-				ImGui::PopItemWidth();
-			}
-			// -EndChild
-			ImGui::EndChild();
-			// -Remove styles
-			ImGui::PopStyleVar(2);
+			DrawSimpleMacros(belowBanner);
 			break;
 		}
 		case 1: // ComplexMacros
@@ -258,4 +193,77 @@ void Draw() {
 
 		ImGui::End();
 	}
+}
+
+float tel_listWidth = 300;
+void DrawSimpleMacros(float belowBanner) {
+	// MacroList
+	ImGui::SetCursorPos(ImVec2(2, belowBanner));
+	// -Styles
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(3.0f, 3.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 1.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+	// -Child
+	ImGui::BeginChild("simpleMacros_list", { tel_listWidth, Window::height - ImGui::GetCursorPosY() - 2 }, true, ImGuiWindowFlags_HorizontalScrollbar);
+	// -Content
+	ImVec2 buttonSize = ImVec2(tel_listWidth - 6, 0);
+	for (int i = 0; i < Data::simpleMacros.size(); i++) {
+		std::string buttonText = std::string(Data::simpleMacros.at(i).name);
+		buttonText.append("##");
+		buttonText.append(std::to_string(i));
+		if (ImGui::Button(buttonText.c_str(), buttonSize)) {
+			simple_editor_open = i;
+			// Remove possible key select listener
+			key_target = -1; // TODO: Maybe add alerts and one for this
+		}
+	}
+	// -EndChild
+	ImGui::EndChild();
+	// -Remove styles
+	ImGui::PopStyleVar(3);
+
+	// MacroEditor
+	ImGui::SetCursorPos(ImVec2(2 + tel_listWidth + 2, belowBanner));
+	// -Styles
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6.0f, 4.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 4.0f));
+	// -Child
+	ImGui::BeginChild("simpleMacros_editor", ImVec2(Window::width - tel_listWidth, Window::height - ImGui::GetCursorPosY() - 2), true);
+	if (simple_editor_open >= 0) {
+		Data::SimpleMacro* current = &Data::simpleMacros.at(simple_editor_open);
+
+		ImGui::Text("Name:");
+		ImGui::SetCursorPosX(20);
+		ImGui::PushItemWidth(291);
+		ImGui::InputText("##name", current->name, IM_ARRAYSIZE(current->name));
+		ImGui::PopItemWidth();
+
+		ImGui::Text("Key:");
+		ImGui::SetCursorPosX(20);
+		//std::string label = std::string(1, (char)MapVirtualKeyA(current->key, MAPVK_VK_TO_CHAR));
+		std::string label = Utils::keyCode_to_string(current->key);
+		bool changing_this = false;
+		if (key_target == simple_editor_open) {
+			changing_this = true;
+			label = std::string("Type new key or press again to cancel.");
+		}
+		if (ImGui::Button(label.c_str(), changing_this ? ImVec2(0, 0) : ImVec2(120, 0))) {
+			if (changing_this) {
+				key_target = -1;
+			}
+			else {
+				key_target = simple_editor_open;
+			}
+		}
+
+		ImGui::Text("Delay (ms):");
+		ImGui::SetCursorPosX(20);
+		ImGui::PushItemWidth(291);
+		ImGui::InputInt("##delay", &current->delay);
+		ImGui::PopItemWidth();
+	}
+	// -EndChild
+	ImGui::EndChild();
+	// -Remove styles
+	ImGui::PopStyleVar(2);
 }
